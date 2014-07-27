@@ -5,36 +5,53 @@ using System.Collections.Generic;
 public class Stick : MonoBehaviour {
 
 	public int x, z;
-	int height;
+	public int height
+	{
+		get
+		{
+			return chips.Count;
+		}
+	}
 
 
 	public List<GameState.PlayerColour> chips;
 
 	void Start () {
-	
-	}
-	
-	void Update () {
-	
+		x = (int)transform.position.x;
+		z = (int)transform.position.z;
+		gameObject.name = "s_" + x + "" + z;
 	}
 
+	[RPC]
+	public void ChangeState(int x, int y, int z, int cc)
+	{
+		if (!Network.isServer)
+			return;
+		GameState.state[x, y, z] = (GameState.PlayerColour)cc;
+		GameState.Check();
+		Debug.Log("RPC CALLED");
+	}
+
+	[RPC]
+	public void CallCheck()
+	{
+		GameState.Check();
+	}
+	
+	[RPC]
 	public int Add(GameState.PlayerColour cc)
 	{
 		if (chips.Count < GameState.sz)
 		{
-			GameState.state[x-1, chips.Count, z-1] = cc;
+			if (!Network.isServer)
+				return 0;
 			chips.Add(cc);
-			GameObject tmp = (GameObject)Instantiate(FindObjectOfType<GameState>().blackPrefab, transform.position + Vector3.up * 5, Quaternion.identity);
+			
+			GameObject tmp = (GameObject)Network.Instantiate(FindObjectOfType<GameState>().blackPrefab, transform.position + Vector3.up * 4, Quaternion.identity, 0);
 			tmp.transform.parent = transform;
-			GameState.Check();
-		}
-		if (chips.Count == GameState.sz)
-		{
-			if (chips.TrueForAll(x => x == GameState.PlayerColour.Black))
-				GameState.Win(GameState.PlayerColour.Black);
-			if (chips.TrueForAll(x => x == GameState.PlayerColour.White))
-				GameState.Win(GameState.PlayerColour.White);
+			
 		}
 		return chips.Count;
 	}
+	 
 }

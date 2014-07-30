@@ -18,8 +18,12 @@ public class GameState : MonoBehaviour
 		Black
 	};
 
+	// colours
 	public static PlayerColour winner = PlayerColour.None;
-	public static PlayerColour[, ,] state = new PlayerColour[sz, sz, sz];
+	PlayerColour ownColour = PlayerColour.None;
+	PlayerColour turn = PlayerColour.White;
+	public PlayerColour[, ,] state = new PlayerColour[sz, sz, sz];
+	public static Dictionary<NetworkPlayer,PlayerColour> players = new Dictionary<NetworkPlayer,PlayerColour>();
 
 	// prefabs
 	public GameObject stick_prefab;
@@ -31,11 +35,15 @@ public class GameState : MonoBehaviour
 		stick_prefab.transform.localScale = new Vector3(0.1f, (sz + 1) * 0.2f, 0.1f);
 		tmprect = new Rect(Screen.width - 150, 20, 130, 90);
 		state.Initialize();
+		players.Clear();
 		for (int x = 1; x <= sz; x++)
 			for (int z = 1; z <= sz; z++)
 				Instantiate(stick_prefab, new Vector3(x, 1+(sz-4)*0.2f, z), Quaternion.identity);
 		transform.position = new Vector3((sz + 1) / 2f, 0, (sz + 1) / 2f);
 		transform.localScale = new Vector3(MAGIC*sz, 0.1f, MAGIC*sz);
+
+		MasterServer.ipAddress = "5.175.147.48";
+		MasterServer.port = 23466;
 	}
 
 	void OnGUI()
@@ -52,7 +60,7 @@ public class GameState : MonoBehaviour
 			if (GUI.Button(new Rect(20, 90, 120, 20), "Initialize Server"))
 			{
 				Network.InitializeServer(32, connectionPort, false);
-				Application.LoadLevel("main");
+				MasterServer.RegisterHost("ttt3d", "awpfdjwopfj");
 			}
 		}
 		else if (Network.peerType == NetworkPeerType.Connecting)
@@ -65,9 +73,33 @@ public class GameState : MonoBehaviour
 		}
 		else if (Network.peerType == NetworkPeerType.Server)
 		{
-			GUI.Label(new Rect(20, 30, 200, 20), "Status: Serving on " + Network.connectionTesterIP);
+			GUI.Label(new Rect(20, 30, 200, 20), "Status: Serving on " + Network.player.externalIP);
 		}
 		tmprect = GUI.Window(0, tmprect, wndfunc, "WINNER");
+	}
+
+	void OnPlayerConnected(NetworkPlayer player)
+	{
+		if (!Network.isServer)
+			return;
+		PlayerColour clr = (ownColour == PlayerColour.Black ? PlayerColour.White : PlayerColour.Black);
+		players.Add(player, clr);
+		networkView.RPC("SetMyColour", player, (int)clr);
+	}
+
+	void OnPlayerDisconnected()
+	{
+		Debug.Log("LOST PLAYER OMG NO");
+	}
+
+	void OnServerInitialized()
+	{
+		//yield Application.LoadLevel("main");
+		float f = Random.value;
+		players.Add(networkView.owner, (f > .5f ? PlayerColour.Black : PlayerColour.White));
+		ownColour = players[networkView.owner];
+		Debug.Log(f);
+		Debug.Log(Time.time + " : " + GameState.players.Count);
 	}
 
 	private void wndfunc(int id)
@@ -76,36 +108,58 @@ public class GameState : MonoBehaviour
 		GUI.DragWindow();
 	}
 
-	//[RPC]
-	static void Win(PlayerColour winnr) // deprecated;
+	[RPC]
+	void Win(int winnr) // deprecated;
 	{
-		winner = winnr;
+		winner = (PlayerColour)winnr;
+		turn = PlayerColour.None;
 	}
 
 	[RPC]
-	public void ChangeState(int x, int y, int z, int cc)
+	void SetMyColour(int clr)
 	{
-		Debug.Log(x + ", " + y + ", " + z);
-		state[x-1, y-1, z-1] = (PlayerColour)cc;
+		ownColour = (PlayerColour)clr;
+	}
+
+	[RPC]
+	public void ChangeState(int x, int y, int z, NetworkPlayer player)
+	{
+		if (!Network.isServer)
+			return;
+		if (x > sz || y > sz || z > sz)
+			return;
+
+		PlayerColour tmp = players[player];
+		Debug.Log(tmp);
+		Debug.Log(turn);
+
+		if (tmp != turn)
+			return;
+
+		state[x - 1, y - 1, z - 1] = tmp;
 		//GameObject tmp = (GameObject)Network.Instantiate(FindObjectOfType<GameState>().blackPrefab, new Vector3(x,y+4,z), Quaternion.identity, 0);
 		Stick s = GameObject.Find("s_" + x + "" + z).GetComponent<Stick>();
-		s.Add((PlayerColour)cc);
+		s.Add(tmp);
 		Check();
+		if (turn == PlayerColour.White)
+			turn = PlayerColour.Black;
+		else if (turn == PlayerColour.Black)
+			turn = PlayerColour.White;
 	}
 
 
 
-	public bool Add(int x, int y, int z, PlayerColour cc)
+	public bool Add(int x, int y, int z)
 	{
 		if (Network.peerType == NetworkPeerType.Disconnected)
 			return false;
-		Debug.Log("HELLO");
-		networkView.RPC("ChangeState", RPCMode.All, x, y, z, (int)cc);
+
+		networkView.RPC("ChangeState", RPCMode.All, x, y, z, Network.player);
+
 		return true;
 	}
 
-	//[RPC]
-	internal static void Check()
+	internal void Check()
 	{
 		// vertical axes are checked in Stick.cs directly // TODO: not anymore, add them here
 
@@ -117,7 +171,7 @@ public class GameState : MonoBehaviour
 						if (state[x, y, 0] != state[x, y, t])
 							break;
 						if (t == sz - 1)
-							Win(state[x, 0, 0]);
+							networkView.RPC("Win", RPCMode.All, (int)state[x, 0, 0]);
 					}
 
 		for (int z = 0; z < sz; z++) // straight horizontal lookat x
@@ -128,7 +182,7 @@ public class GameState : MonoBehaviour
 						if (state[0, y, z] != state[t, y, z])
 							break;
 						if (t == sz - 1)
-							Win(state[0, 0, z]);
+							networkView.RPC("Win", RPCMode.All, (int)state[0, 0, z]);
 					}
 		for (int y = 0; y < sz; y++) // main diagonals
 		{
@@ -138,7 +192,7 @@ public class GameState : MonoBehaviour
 					if (state[0, y, 0] != state[t, y, t])
 						break;
 					if (t == sz - 1)
-						Win(state[0, y, 0]);
+						networkView.RPC("Win", RPCMode.All, (int)state[0, y, 0]);
 				}
 
 			if (state[sz-1, y, 0] != PlayerColour.None)
@@ -147,7 +201,7 @@ public class GameState : MonoBehaviour
 					if (state[sz - 1, y, 0] != state[sz - 1 - t, y, t])
 						break;
 					if (t == sz - 1)
-						Win(state[sz-1, y, 0]);
+						networkView.RPC("Win", RPCMode.All, (int)state[sz - 1, y, 0]);
 				}
 		}
 		for (int x = 0; x < sz; x++) // diagonal horizontals lookat z
@@ -158,7 +212,7 @@ public class GameState : MonoBehaviour
 					if (state[x, 0, 0] != state[x, t, t])
 						break;
 					if (t == sz - 1)
-						Win(state[x, 0, 0]);
+						networkView.RPC("Win", RPCMode.All, (int)state[x, 0, 0]);
 				}
 			if (state[x, sz-1, 0] != PlayerColour.None)
 				for (int t = 1; t < sz; t++)
@@ -166,7 +220,7 @@ public class GameState : MonoBehaviour
 					if (state[x, sz - 1, 0] != state[x, sz - 1 - t, t])
 						break;
 					if (t == sz - 1)
-						Win(state[x, sz-1, 0]);
+						networkView.RPC("Win", RPCMode.All, (int)state[x, sz - 1, 0]);
 				}
 		}
 		for (int z = 0; z < sz; z++) // diagonal horizontals lookat x
@@ -177,7 +231,7 @@ public class GameState : MonoBehaviour
 					if (state[0, 0, z] != state[t, t, z])
 						break;
 					if (t == sz - 1)
-						Win(state[0, 0, z]);
+						networkView.RPC("Win", RPCMode.All, (int)state[0, 0, z]);
 				}
 			if (state[0, sz-1, z] != PlayerColour.None)
 				for (int t = 1; t < sz; t++)
@@ -185,10 +239,18 @@ public class GameState : MonoBehaviour
 					if (state[0, sz - 1, z] != state[t, sz - 1 - t, z])
 						break;
 					if (t == sz - 1)
-						Win(state[0, sz-1, z]);
+						networkView.RPC("Win", RPCMode.All, (int)state[0, sz - 1, z]);
 				}
 		}
 
 	}
 
+	internal GameObject GetPrefab(PlayerColour cc)
+	{
+		if (cc == PlayerColour.Black)
+			return blackPrefab;
+		if (cc == PlayerColour.White)
+			return whitePrefab;
+		return null;
+	}
 }

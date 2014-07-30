@@ -21,7 +21,7 @@ public class Stick : MonoBehaviour {
 		z = (int)transform.position.z;
 		gameObject.name = "s_" + x + "" + z;
 	}
-
+	/* // OBSOLETE
 	[RPC]
 	public void ChangeState(int x, int y, int z, int cc)
 	{
@@ -37,8 +37,7 @@ public class Stick : MonoBehaviour {
 	{
 		GameState.Check();
 	}
-	
-	[RPC]
+	*/
 	public int Add(GameState.PlayerColour cc)
 	{
 		if (chips.Count < GameState.sz)
@@ -47,7 +46,7 @@ public class Stick : MonoBehaviour {
 				return 0;
 			chips.Add(cc);
 			
-			GameObject tmp = (GameObject)Network.Instantiate(FindObjectOfType<GameState>().blackPrefab, transform.position + Vector3.up * 4, Quaternion.identity, 0);
+			GameObject tmp = (GameObject)Network.Instantiate(FindObjectOfType<GameState>().GetPrefab(cc), transform.position + Vector3.up * 4, Quaternion.identity, 0);
 			tmp.transform.parent = transform;
 			
 		}

@@ -22,6 +22,7 @@ public class MouseHandler : MonoBehaviour
 		field = GameObject.Find("Field");
 		transform.position = field.transform.position + new Vector3(r * Mathf.Cos(phi) * Mathf.Cos(psy), r * Mathf.Sin(psy), r * Mathf.Sin(phi) * Mathf.Cos(psy));
 		transform.LookAt(field.transform.position);
+		Debug.Log(Time.time + " : " + GameState.players.Count);
 		gs = field.GetComponent<GameState>();
 	}
 
@@ -59,7 +60,7 @@ public class MouseHandler : MonoBehaviour
 					if (hit.collider && hit.collider.name.StartsWith("s_"))
 					{
 						Stick stickHit = hit.collider.gameObject.GetComponent<Stick>();
-						gs.Add(stickHit.x, stickHit.height + 1, stickHit.z, GameState.PlayerColour.Black);
+						gs.Add(stickHit.x, stickHit.height + 1, stickHit.z);
 						//stickHit.Add(GameState.PlayerColour.Black);
 					}
 			}

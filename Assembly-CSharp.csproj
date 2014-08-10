@@ -49,8 +49,11 @@
      <Compile Include="Assets\Scripts\CollisionFX.cs" />
      <Compile Include="Assets\Scripts\GameState.cs" />
      <Compile Include="Assets\Scripts\MouseHandler.cs" />
+     <Compile Include="Assets\Scripts\Networking.cs" />
+     <Compile Include="Assets\Scripts\SmoothFollow.cs" />
      <Compile Include="Assets\Scripts\Stick.cs" />
      <Compile Include="Assets\Scripts\Sticks.cs" />
+     <Compile Include="Assets\Scripts\UI.cs" />
      <None Include="Assets\Standard Assets\Glass Refraction (Pro Only)\Sources\Shaders\Glass-Stained-BumpDistort.shader" />
      <None Include="Assets\Standard Assets\Image Effects (Pro Only)\_Sources\Shaders\_BloomAndFlares\BlendOneOne.shader" />
      <None Include="Assets\Standard Assets\Image Effects (Pro Only)\_Sources\Shaders\NoiseEffectShaderRGB.shader" />

@@ -5,7 +5,7 @@ public class MouseHandler : MonoBehaviour
 {
 	// common globals
 	float pressTime_l = 0;
-	float pressTime_r = 0;
+	//float pressTime_r = 0;
 	public float clickThreshold = 1;
 	GameState gs;
 
@@ -22,7 +22,6 @@ public class MouseHandler : MonoBehaviour
 		field = GameObject.Find("Field");
 		transform.position = field.transform.position + new Vector3(r * Mathf.Cos(phi) * Mathf.Cos(psy), r * Mathf.Sin(psy), r * Mathf.Sin(phi) * Mathf.Cos(psy));
 		transform.LookAt(field.transform.position);
-		Debug.Log(Time.time + " : " + GameState.players.Count);
 		gs = field.GetComponent<GameState>();
 	}
 
